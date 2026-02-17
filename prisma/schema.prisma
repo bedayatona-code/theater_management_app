@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String?  @unique
+  password  String
+  image     String?
+  role      String   @default("PLAYER") // "ADMIN" or "PLAYER"
+  playerId  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player Player? @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}
+
+model Player {
+  id            String   @id @default(cuid())
+  fullName      String
+  email         String
+  phone         String?
+  address       String?
+  taxId         String?
+  imageUrl      String?
+  overpaymentDismissed Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User?
+  eventPlayers  EventPlayer[]
+  payments      Payment[]
+
+  @@map("players")
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  name            String
+  date            DateTime
+  venue           String?
+  description     String?
+  totalBudget     Float?
+  commissioner    String? // Who is paying/ordering the event
+  commissionerContact String?
+  commissionerPhone   String?
+  commissionerTaxId   String?
+  commissionerAddress String?
+  invoiceNumber       String? // מס' חשבונית
+  receiptNumber       String? // מס' קבלה
+  audienceCount       Int?    // כמות קהל
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  eventPlayers    EventPlayer[]
+  payments        Payment[]
+
+  @@map("events")
+}
+
+model EventPlayer {
+  id              String        @id @default(cuid())
+  eventId         String
+  playerId        String
+  fee             Float
+  role            String?       // Role in the event
+  paymentDueDate  DateTime?
+  paymentStatus   String @default("UNPAID") // "UNPAID", "PARTIALLY_PAID", "FULLY_PAID"
+  notes           String?       // Notes about fee calculation (distance, role, etc.)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  event           Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  player          Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  paymentEvents   PaymentEvent[]
+
+  @@unique([eventId, playerId])
+  @@map("event_players")
+}
+
+
+model Payment {
+  id                  String   @id @default(cuid())
+  playerId            String?
+  amount              Float
+  paymentDate         DateTime
+  type                String   @default("INCOME") // "INCOME" or "EXPENSE"
+  category            String?  // Artistic Director, Maintenance, etc.
+  paymentMethod       String   @default("TRANSFER") // petty cash, credit card, check, transfer
+  transactionReference String?  // אסמכתא for transfers
+  checkNumber         String?  // Check number for checks
+  bankAccount         String?  // Bank account number
+  bankNumber          String?  // Bank branch/code number
+  receiptLink         String?  // Link to receipt/document
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  creditCardNumber    String?
+  creditCardHolder    String?
+  eventId             String?
+  event               Event?        @relation(fields: [eventId], references: [id])
+  paymentEvents       PaymentEvent[]
+  player              Player?       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model CreditCard {
+  id     String @id @default(cuid())
+  lastFour String
+  number   String @unique // Encrypted or full depending on user preference
+  name     String?
+  createdAt DateTime @default(now())
+
+  @@map("credit_cards")
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  year        Int
+  category    String
+  amount      Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([year, category])
+  @@map("budgets")
+}
+
+model YearlyBudget {
+  id          String   @id @default(cuid())
+  year        Int      @unique
+  totalAmount Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("yearly_budgets")
+}
+
+// Junction table to link payments to multiple events
+model PaymentEvent {
+  id              String   @id @default(cuid())
+  paymentId       String
+  eventPlayerId   String
+  amount          Float    // Amount allocated to this specific event
+  createdAt       DateTime @default(now())
+
+  payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  eventPlayer     EventPlayer  @relation(fields: [eventPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, eventPlayerId])
+  @@map("payment_events")
+}
+
+model ErrorReport {
+  id          String   @id @default(cuid())
+  playerId    String?  // If reported by a player
+  type        String   // "error" or "suggestion"
+  title       String
+  description String
+  status      String   @default("pending") // pending, reviewed, resolved
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("error_reports")
+}
+
+model GoogleToken {
+  id           String   @id @default("session")
+  tokens       String   // JSON stringified tokens
+  updatedAt    DateTime @updatedAt
+
+  @@map("google_tokens")
+}
