@@ -2,6 +2,7 @@ import type { NextAuthConfig } from "next-auth"
 
 export const authConfig = {
     trustHost: true,
+    secret: process.env.AUTH_SECRET || "development-secret-key-change-in-production",
     providers: [], // We add Credentials in auth.ts
     callbacks: {
         async jwt({ token, user }) {
