@@ -4,6 +4,7 @@ import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   secret: process.env.AUTH_SECRET || "development-secret-key-change-in-production",
   providers: [
     Credentials({
