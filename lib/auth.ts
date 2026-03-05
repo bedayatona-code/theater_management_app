@@ -2,9 +2,10 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
+import { authConfig } from "./auth.config"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
+  ...authConfig,
   secret: process.env.AUTH_SECRET || "development-secret-key-change-in-production",
   providers: [
     Credentials({
@@ -71,28 +72,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     })
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-        token.playerId = user.playerId
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as string
-        session.user.playerId = token.playerId as string | null
-      }
-      return session
-    }
-  },
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-  },
 })
 
 export async function getServerSession() {

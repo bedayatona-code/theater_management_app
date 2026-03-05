@@ -1,48 +1,44 @@
+import NextAuth from "next-auth"
+import { authConfig } from "./lib/auth.config"
 import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
-import { getToken } from "next-auth/jwt"
 
-export async function middleware(request: NextRequest) {
-    const secret = process.env.AUTH_SECRET || "development-secret-key-change-in-production"
-    const token = await getToken({ req: request, secret })
-    const { pathname } = request.nextUrl
+const { auth } = NextAuth(authConfig)
 
-    console.log(`MIDDLEWARE DEBUG: path=${pathname}, hasToken=${!!token}`);
-    if (token) {
-        console.log(`MIDDLEWARE DEBUG: tokenRole=${token.role}`);
-    } else {
-        const cookies = request.cookies.getAll().map(c => c.name);
-        console.log(`MIDDLEWARE DEBUG: No token found. Cookies present: ${cookies.join(", ")}`);
-    }
+export default auth((req) => {
+    const { nextUrl } = req
+    const isLoggedIn = !!req.auth
+    const userRole = (req.auth?.user as any)?.role
+
+    console.log(`MIDDLEWARE DEBUG: path=${nextUrl.pathname}, isLoggedIn=${isLoggedIn}, role=${userRole}`);
 
     // Allow access to login page and API routes
-    if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
+    if (nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/api/auth")) {
         return NextResponse.next()
     }
 
     // Protect /admin routes - require ADMIN role
-    if (pathname.startsWith("/admin")) {
-        if (!token) {
-            return NextResponse.redirect(new URL("/login", request.url))
+    if (nextUrl.pathname.startsWith("/admin")) {
+        if (!isLoggedIn) {
+            return NextResponse.redirect(new URL("/login", nextUrl))
         }
-        if (token.role !== "ADMIN") {
-            return NextResponse.redirect(new URL("/player", request.url))
+        if (userRole !== "ADMIN") {
+            return NextResponse.redirect(new URL("/player", nextUrl))
         }
     }
 
     // Protect /player routes - require PLAYER role
-    if (pathname.startsWith("/player")) {
-        if (!token) {
-            return NextResponse.redirect(new URL("/login", request.url))
+    if (nextUrl.pathname.startsWith("/player")) {
+        if (!isLoggedIn) {
+            return NextResponse.redirect(new URL("/login", nextUrl))
         }
-        if (token.role !== "PLAYER") {
-            return NextResponse.redirect(new URL("/admin", request.url))
+        if (userRole !== "PLAYER" && userRole !== "ADMIN") {
+            return NextResponse.redirect(new URL("/admin", nextUrl))
         }
     }
 
     return NextResponse.next()
-}
+})
 
 export const config = {
-    matcher: ["/admin/:path*", "/player/:path*"],
+    matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 }
