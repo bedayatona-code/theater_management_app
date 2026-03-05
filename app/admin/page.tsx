@@ -60,12 +60,10 @@ async function checkAndPerformAutoBackup() {
 }
 
 export default async function AdminDashboard() {
-  console.log("ADMIN DASHBOARD: Starting page fetch...");
   // Fire and forget the auto-backup so it doesn't block page load
   checkAndPerformAutoBackup().catch(console.error);
 
   try {
-    console.log("ADMIN DASHBOARD: Fetching stats sequentially...");
     const totalEvents = await prisma.event.count();
     const totalPlayers = await prisma.player.count();
     const totalUnpaidCount = await prisma.eventPlayer.count({
@@ -106,8 +104,6 @@ export default async function AdminDashboard() {
 
     const totalPaidAmount = paidAmountAgg._sum.amount || 0
 
-    console.log("ADMIN DASHBOARD: Main stats fetched.");
-
     // Fetch monthly data for the last 12 months sequentially
     const monthlyData = []
     for (let i = 11; i >= 0; i--) {
@@ -137,7 +133,6 @@ export default async function AdminDashboard() {
         expenses: expenses._sum.amount || 0,
       })
     }
-    console.log("ADMIN DASHBOARD: Monthly data fetched.");
     const overpaidPlayers = await prisma.player.findMany({
       where: {
         overpaymentDismissed: false,
