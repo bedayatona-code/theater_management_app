@@ -56,3 +56,6 @@ prisma/dev.db*
 # invoices
 /public/invoices/*
 !/public/invoices/.gitkeep
+
+.vercel
+.env*.local

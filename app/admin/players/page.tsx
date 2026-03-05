@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { PlayersClient } from "@/components/PlayersClient"
 
+export const dynamic = "force-dynamic"
+
 export default async function PlayersPage() {
   const players = await prisma.player.findMany({
     include: {

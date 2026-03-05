@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import { LanguageProviderWrapper } from "@/components/LanguageProviderWrapper"
 import { MonthlyPaymentsClient } from "@/components/MonthlyPaymentsClient"
 
+export const dynamic = "force-dynamic"
+
 export default async function MonthlyPaymentsPage() {
     const payments = await prisma.payment.findMany({
         include: {

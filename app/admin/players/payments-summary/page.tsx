@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { PlayersPaymentsSummaryClient } from "@/components/PlayersPaymentsSummaryClient"
 
+export const dynamic = "force-dynamic"
+
 export default async function PlayersPaymentsSummaryPage() {
     const players = await prisma.player.findMany({
         include: {

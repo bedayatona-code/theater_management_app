@@ -3,6 +3,8 @@ import { notFound } from "next/navigation"
 import { LanguageProviderWrapper } from "@/components/LanguageProviderWrapper"
 import { PaymentDetailClient } from "@/components/PaymentDetailClient"
 
+export const dynamic = "force-dynamic"
+
 export default async function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
 

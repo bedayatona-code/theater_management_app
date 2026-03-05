@@ -103,27 +103,27 @@ export function ReportsClient({ initialReports }: ReportsClientProps = {}) {
 
     return (
         <div className="space-y-6" dir={language === "he" ? "rtl" : "ltr"}>
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-primary tracking-tight">
+            <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/30 p-6 md:p-8 rounded-2xl border border-border shadow-sm mb-8 mx-auto w-full">
+                <h1 className="text-3xl font-bold text-primary tracking-tight mb-4 md:mb-0 text-center md:text-start w-full md:w-auto">
                     {language === "he" ? "דוחות ונתונים" : "Reports & Data"}
                 </h1>
 
-                <div className="flex bg-muted p-1 rounded-lg">
+                <div className="flex bg-muted p-1 rounded-lg w-full md:w-auto overflow-x-auto justify-start md:justify-end">
                     <button
                         onClick={() => setActiveTab("budget")}
-                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === "budget" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`px-3 md:px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === "budget" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         {language === "he" ? "ניצול תקציב" : "Budget Utilization"}
                     </button>
                     <button
                         onClick={() => setActiveTab("payments")}
-                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === "payments" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`px-3 md:px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === "payments" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         {language === "he" ? "יומן תשלומים" : "Payments Log"}
                     </button>
                     <button
                         onClick={() => setActiveTab("accountant")}
-                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === "accountant" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`px-3 md:px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === "accountant" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         {language === "he" ? "דוח לרואה חשבון" : "Accountant Report"}
                     </button>

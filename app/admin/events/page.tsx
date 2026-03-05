@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { EventsClient } from "@/components/EventsClient"
 
+export const dynamic = "force-dynamic"
+
 export default async function EventsPage() {
   const events = await prisma.event.findMany({
     include: {

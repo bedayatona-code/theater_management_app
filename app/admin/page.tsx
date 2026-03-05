@@ -1,30 +1,48 @@
 import { prisma } from "@/lib/prisma"
 import { DashboardClient } from "@/components/DashboardClient"
+
+export const dynamic = "force-dynamic"
 import { startOfMonth, subMonths, endOfMonth, differenceInDays } from "date-fns"
 import fs from "fs"
 import path from "path"
 
+import { exportDbToJson } from "@/lib/dbBackup"
+import { uploadToDrive } from "@/lib/googleDrive"
+
 async function checkAndPerformAutoBackup() {
   try {
     const backupDir = path.join(process.cwd(), "backups")
-    const dbPath = path.join(process.cwd(), "prisma", "dev.db")
 
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true })
     }
 
     const files = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith("auto-backup-") && f.endsWith(".json"))
       .map(f => ({ name: f, time: fs.statSync(path.join(backupDir, f)).mtime.getTime() }))
       .sort((a, b) => b.time - a.time)
 
     const lastBackupTime = files.length > 0 ? files[0].time : 0
-    const daysSinceLastBackup = differenceInDays(new Date(), new Date(lastBackupTime))
+    const now = new Date()
+    const hoursSinceLastBackup = (now.getTime() - lastBackupTime) / (1000 * 60 * 60)
 
-    if (daysSinceLastBackup >= 7 || files.length === 0) {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-      const filename = `auto-backup-${timestamp}.db`
-      fs.copyFileSync(dbPath, path.join(backupDir, filename))
+    // Run every 24 hours
+    if (hoursSinceLastBackup >= 24 || files.length === 0) {
+      const data = await exportDbToJson()
+      const timestamp = now.toISOString().replace(/[:.]/g, "-")
+      const filename = `auto-backup-${timestamp}.json`
+      const backupPath = path.join(backupDir, filename)
+
+      fs.writeFileSync(backupPath, JSON.stringify(data, null, 2))
       console.log(`Auto-backup created: ${filename}`)
+
+      // Sync to Google Drive
+      try {
+        await uploadToDrive(backupPath, filename)
+        console.log(`Auto-backup synced to Drive: ${filename}`)
+      } catch (driveErr) {
+        console.error("Auto-backup Drive sync failed", driveErr)
+      }
 
       // Keep only 10
       if (files.length >= 10) {
@@ -39,7 +57,9 @@ async function checkAndPerformAutoBackup() {
 }
 
 export default async function AdminDashboard() {
-  await checkAndPerformAutoBackup()
+  // Fire and forget the auto-backup so it doesn't block page load
+  checkAndPerformAutoBackup().catch(console.error);
+
   // Get general statistics
   const [totalEvents, totalPlayers, totalUnpaidCount, totalPaidCount, totalPendingReports] = await Promise.all([
     prisma.event.count(),
@@ -65,6 +85,11 @@ export default async function AdminDashboard() {
 
   // Calculate accurate unpaid amount by summing individual event players' remaining balances
   const eventPlayersWithDebt = await (prisma.eventPlayer as any).findMany({
+    where: {
+      paymentStatus: {
+        in: ["UNPAID", "PARTIALLY_PAID"],
+      },
+    },
     include: {
       paymentEvents: true,
     }
@@ -87,13 +112,13 @@ export default async function AdminDashboard() {
   const totalPaidAmount = (paidAmountAgg as any)._sum.amount || 0
 
   // Fetch monthly data for the last 12 months
-  const monthlyData = []
+  const monthsDataPromises = []
   for (let i = 11; i >= 0; i--) {
     const monthStart = startOfMonth(subMonths(new Date(), i))
     const monthEnd = endOfMonth(monthStart)
     const monthLabel = monthStart.toLocaleString('default', { month: 'short', year: '2-digit' })
 
-    const income = await (prisma.payment as any).aggregate({
+    const incomePromise = (prisma.payment as any).aggregate({
       where: {
         type: "INCOME",
         paymentDate: {
@@ -106,7 +131,7 @@ export default async function AdminDashboard() {
       },
     })
 
-    const expenses = await (prisma.payment as any).aggregate({
+    const expensesPromise = (prisma.payment as any).aggregate({
       where: {
         type: "EXPENSE",
         paymentDate: {
@@ -119,16 +144,20 @@ export default async function AdminDashboard() {
       },
     })
 
-    monthlyData.push({
+    monthsDataPromises.push(Promise.all([incomePromise, expensesPromise]).then(([income, expenses]) => ({
       label: monthLabel,
       income: (income as any)._sum.amount || 0,
       expenses: (expenses as any)._sum.amount || 0,
-    })
+    })))
   }
 
+  const monthlyData = await Promise.all(monthsDataPromises)
   const overpaidPlayers = await prisma.player.findMany({
     where: {
       overpaymentDismissed: false,
+      payments: {
+        some: {} // Only fetch players who actually made payments
+      }
     },
     include: {
       eventPlayers: {
@@ -160,8 +189,9 @@ export default async function AdminDashboard() {
 
   // Fetch category-based budget vs actual for the current year
   const currentYear = new Date().getFullYear()
-  // Use raw query because prisma.budget might not be generated yet in the client
-  const budgets: any[] = await prisma.$queryRaw`SELECT * FROM budgets WHERE year = ${currentYear}`
+  const budgets = await prisma.budget.findMany({
+    where: { year: currentYear }
+  })
 
   // Use Prisma Client for consistent text encoding/decoding of Hebrew categories
   const yearPayments = await prisma.payment.findMany({
@@ -220,8 +250,10 @@ export default async function AdminDashboard() {
     actual: categoryActuals[cat] || 0
   })).filter(b => b.budget > 0 || b.actual > 0);
 
-  const yearlyBudgets: any[] = await prisma.$queryRaw`SELECT totalAmount FROM yearly_budgets WHERE year = ${currentYear} LIMIT 1`
-  const yearlyTotalBudget = yearlyBudgets[0]?.totalAmount || 0
+  const yearlyBudget = await prisma.yearlyBudget.findUnique({
+    where: { year: currentYear }
+  })
+  const yearlyTotalBudget = yearlyBudget?.totalAmount || 0
 
   const stats = {
     totalEvents,

@@ -35,6 +35,9 @@ export function Navbar() {
               <Link href="/admin/reports" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
                 {t("nav.reports")}
               </Link>
+              <Link href="/admin#backups" className="text-sm font-medium text-foreground hover:text-primary transition-colors" onClick={() => { if (typeof window !== 'undefined' && window.location.pathname === '/admin') { document.getElementById('btn-manage-backups')?.click() } }}>
+                {t("nav.backups")}
+              </Link>
             </div>
           )}
         </div>

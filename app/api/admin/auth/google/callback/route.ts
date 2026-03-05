@@ -13,8 +13,8 @@ export async function GET(req: Request) {
         const oAuth2Client = await getOAuth2Client();
         const { tokens } = await oAuth2Client.getToken(code);
 
-        // This will save the tokens to google-token.json
-        saveTokens(tokens);
+        // Await saving to ensure redirected request sees the token
+        await saveTokens(tokens);
 
         // Redirect back to dashboard
         return NextResponse.redirect(new URL('/admin', req.url));

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/auth"
+
+export const dynamic = "force-dynamic"
 import { redirect, notFound } from "next/navigation"
 import { LanguageProviderWrapper } from "@/components/LanguageProviderWrapper"
 import { PlayerPortalClient } from "@/components/PlayerPortalClient"

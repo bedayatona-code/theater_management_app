@@ -1,0 +1,26 @@
+{
+  "players": [],
+  "users": [
+    {
+      "id": "cmm10uvb700005kx1trs5bkth",
+      "email": "admin@theater.com",
+      "username": null,
+      "password": "$2b$10$mb2isS4/A9mJsdWoKzPUG.oIF3v59LUKvqLYIvEqq6XfIlOb8D.Pe",
+      "image": null,
+      "role": "ADMIN",
+      "playerId": null,
+      "createdAt": "2026-02-24T19:52:07.939Z",
+      "updatedAt": "2026-03-05T12:47:23.166Z"
+    }
+  ],
+  "events": [],
+  "eventPlayers": [],
+  "payments": [],
+  "paymentEvents": [],
+  "budgets": [],
+  "yearlyBudgets": [],
+  "creditCards": [],
+  "errorReports": [],
+  "exportedAt": "2026-03-05T17:04:15.586Z",
+  "version": "1.0"
+}

@@ -3,14 +3,22 @@ import { listDriveBackups, downloadFromDrive } from "@/lib/googleDrive"
 import path from "path"
 import fs from "fs"
 
+export const dynamic = 'force-dynamic'
+
+
 export async function GET() {
     try {
-        const backups = await listDriveBackups()
-        return NextResponse.json(backups)
+        const { files: backups, authType } = await listDriveBackups()
+        console.log(`API listing Drive backups: ${backups.length} found, Auth: ${authType}`);
+
+        return NextResponse.json({
+            files: backups,
+            authType: authType
+        })
     } catch (error: any) {
         console.error("Failed to list Google Drive backups:", error)
-        if (error.message.includes('Not authenticated')) {
-            return NextResponse.json({ error: 'not_authenticated' }, { status: 401 })
+        if (error.message.includes('expired') || error.message.includes('connect')) {
+            return NextResponse.json({ error: 'expired' }, { status: 401 })
         }
         return NextResponse.json({ error: error.message }, { status: 500 })
     }

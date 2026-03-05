@@ -33,9 +33,16 @@ export default function LoginPage() {
         redirect: false,
       })
 
-      if (result?.error) {
+      console.log("Login result:", result)
+
+      if (!result) {
+        setError("No response from server. Check your connection.")
+        return
+      }
+
+      if (result.error) {
         setError("Invalid email or password")
-      } else if (result?.ok) {
+      } else if (result.ok) {
         // Wait for session to update
         setTimeout(() => {
           fetch("/api/auth/session")
@@ -52,6 +59,7 @@ export default function LoginPage() {
         }, 100)
       }
     } catch (err) {
+      console.error("Login catch error:", err)
       setError("An error occurred during login")
     } finally {
       setLoading(false)

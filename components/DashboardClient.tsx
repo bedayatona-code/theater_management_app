@@ -71,8 +71,10 @@ export function DashboardClient({ stats }: DashboardProps) {
             const res = await fetch("/api/admin/backup/drive")
             const data = await res.json()
             if (res.ok) {
-                setDriveBackups(data)
-                setIsDriveConnected(true)
+                setDriveBackups(data.files || [])
+                // We only consider the drive "connected" (for UI purposes) if they are using their personal OAuth.
+                // If it's the Service Account fallback, they must connect to their personal account to upload.
+                setIsDriveConnected(data.authType === 'oauth')
             } else if (res.status === 401) {
                 setIsDriveConnected(false)
             }
@@ -95,6 +97,9 @@ export function DashboardClient({ stats }: DashboardProps) {
                 alert(language === "he" ? "הגיבוי הורד בהצלחה מהענן!" : "Backup downloaded from cloud successfully!")
                 fetchBackups()
             } else {
+                if (res.status === 401) {
+                    setIsDriveConnected(false)
+                }
                 const data = await res.json()
                 alert(`Pull failed: ${data.error}`)
             }
@@ -134,7 +139,18 @@ export function DashboardClient({ stats }: DashboardProps) {
                 fetchBackups()
                 fetchDriveBackups()
             } else {
-                alert(`Backup failed: ${data.error}`)
+                const errorMsg = data.error || "Unknown error";
+                alert(`Backup failed: ${errorMsg}`)
+
+                if (res.status === 401 || errorMsg.includes("expired") || errorMsg.includes("invalid_grant")) {
+                    setIsDriveConnected(false)
+                }
+
+                if (errorMsg.includes("Connect with Google") || errorMsg.includes("storage quota") || errorMsg.includes("expired") || errorMsg.includes("invalid_grant")) {
+                    alert(language === "he"
+                        ? "נראה שיש בעיית התחברות או נפח אחסון. אנא התחבר עם Google מחדש."
+                        : "Google connection issue detected. Please re-connect with Google to use your 15GB quota.")
+                }
             }
         } catch (err) {
             alert(t("alert.process_error"))
@@ -193,12 +209,19 @@ export function DashboardClient({ stats }: DashboardProps) {
         }
     }, [showBackups])
 
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.location.hash === '#backups') {
+            setShowBackups(true)
+        }
+    }, [])
+
     return (
         <div className="space-y-6" dir={language === "he" ? "rtl" : "ltr"}>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-3xl font-bold text-primary tracking-tight">{t("dashboard.title")}</h1>
                 <div className={`flex flex-wrap items-center gap-3 ${language === "he" ? "flex-row-reverse" : ""}`}>
                     <button
+                        id="btn-manage-backups"
                         onClick={() => setShowBackups(!showBackups)}
                         className="bg-secondary hover:bg-muted text-foreground border border-border px-4 py-2 rounded-lg transition-all font-medium active:scale-95"
                     >
@@ -210,6 +233,14 @@ export function DashboardClient({ stats }: DashboardProps) {
                         className="bg-primary hover:bg-primary/90 text-black px-4 py-2 rounded-lg transition-all disabled:opacity-50 font-bold shadow-sm active:scale-95"
                     >
                         {loading ? t("dashboard.processing") : t("dashboard.quick_backup")}
+                    </button>
+                    <button
+                        onClick={handleBackup}
+                        disabled={loading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all disabled:opacity-50 font-bold shadow-sm active:scale-95 flex items-center gap-2"
+                    >
+                        <span className="text-lg">☁️</span>
+                        {loading ? t("dashboard.syncing_cloud") : t("dashboard.cloud_backup")}
                     </button>
                     <ExportButtons />
                 </div>
@@ -312,17 +343,30 @@ export function DashboardClient({ stats }: DashboardProps) {
                                                     {new Date(b.createdTime).toLocaleString()} • {(b.size / 1024 / 1024).toFixed(2)} MB
                                                 </div>
                                             </div>
-                                            {isLocal ? (
-                                                <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-1 rounded font-bold uppercase">{language === "he" ? "מסונכרן" : "Synced"}</span>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handlePullFromDrive(b.id, b.name)}
-                                                    disabled={loading}
-                                                    className="text-xs bg-primary/10 text-primary hover:bg-primary hover:text-black border border-primary/20 px-4 py-2 rounded-lg transition-all font-bold uppercase tracking-widest active:scale-95"
-                                                >
-                                                    {language === "he" ? "הורד" : "Pull"}
-                                                </button>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                {isLocal && (
+                                                    <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-1 rounded font-bold uppercase hidden sm:inline-block">
+                                                        {language === "he" ? "מסונכרן" : "Synced"}
+                                                    </span>
+                                                )}
+                                                {isLocal ? (
+                                                    <button
+                                                        onClick={() => handleRestore(b.name)}
+                                                        disabled={loading}
+                                                        className="text-xs bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 px-3 py-1.5 rounded-lg transition-all font-bold uppercase tracking-widest active:scale-95"
+                                                    >
+                                                        {t("dashboard.restore")}
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handlePullFromDrive(b.id, b.name)}
+                                                        disabled={loading}
+                                                        className="text-xs bg-primary/10 text-primary hover:bg-primary hover:text-black border border-primary/20 px-3 py-1.5 rounded-lg transition-all font-bold uppercase tracking-widest active:scale-95"
+                                                    >
+                                                        {language === "he" ? "הורד" : "Pull"}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     )
                                 })

@@ -1,0 +1,82 @@
+{
+  "players": [
+    {
+      "id": "cmmdprwlv0001efrtkuab1c21",
+      "fullName": "asdsa",
+      "email": "dsa@sad.com",
+      "phone": "",
+      "address": "",
+      "taxId": "",
+      "imageUrl": "",
+      "overpaymentDismissed": false,
+      "createdAt": "2026-03-05T17:02:54.119Z",
+      "updatedAt": "2026-03-05T17:02:54.119Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "cmm10uvb700005kx1trs5bkth",
+      "email": "admin@theater.com",
+      "username": null,
+      "password": "$2b$10$mb2isS4/A9mJsdWoKzPUG.oIF3v59LUKvqLYIvEqq6XfIlOb8D.Pe",
+      "image": null,
+      "role": "ADMIN",
+      "playerId": null,
+      "createdAt": "2026-02-24T19:52:07.939Z",
+      "updatedAt": "2026-03-05T12:47:23.166Z"
+    },
+    {
+      "id": "cmmdprwlv0002efrtbkmp67yn",
+      "email": "dsa@sad.com",
+      "username": "asdsa",
+      "password": "$2b$10$AqpWSljMVVce/SPJ67gj.O5zxD8U8uaXTNVnKAYvUV27Pxs5GP.H6",
+      "image": "",
+      "role": "PLAYER",
+      "playerId": "cmmdprwlv0001efrtkuab1c21",
+      "createdAt": "2026-03-05T17:02:54.119Z",
+      "updatedAt": "2026-03-05T17:02:54.119Z"
+    }
+  ],
+  "events": [
+    {
+      "id": "cmmdk514f00006cazi86r5uva",
+      "name": "mlm,",
+      "date": "2026-03-20T00:00:00.000Z",
+      "venue": "",
+      "description": "",
+      "totalBudget": null,
+      "commissioner": "",
+      "commissionerContact": "",
+      "commissionerPhone": "",
+      "commissionerTaxId": "",
+      "commissionerAddress": "",
+      "invoiceNumber": "",
+      "receiptNumber": "",
+      "audienceCount": null,
+      "createdAt": "2026-03-05T14:25:08.793Z",
+      "updatedAt": "2026-03-05T14:25:08.793Z"
+    }
+  ],
+  "eventPlayers": [
+    {
+      "id": "cmmdpsa4k0004efrtnzodsmoj",
+      "eventId": "cmmdk514f00006cazi86r5uva",
+      "playerId": "cmmdprwlv0001efrtkuab1c21",
+      "fee": 500,
+      "role": "",
+      "paymentDueDate": null,
+      "paymentStatus": "UNPAID",
+      "notes": "",
+      "createdAt": "2026-03-05T17:03:11.627Z",
+      "updatedAt": "2026-03-05T17:03:11.627Z"
+    }
+  ],
+  "payments": [],
+  "paymentEvents": [],
+  "budgets": [],
+  "yearlyBudgets": [],
+  "creditCards": [],
+  "errorReports": [],
+  "exportedAt": "2026-03-05T17:03:31.582Z",
+  "version": "1.0"
+}

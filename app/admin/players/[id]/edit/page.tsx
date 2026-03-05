@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { PlayerEditForm } from "@/components/PlayerEditForm"
 
+export const dynamic = "force-dynamic"
+
 export default async function EditPlayerPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const player = await prisma.player.findUnique({
