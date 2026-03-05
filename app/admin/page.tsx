@@ -57,10 +57,12 @@ async function checkAndPerformAutoBackup() {
 }
 
 export default async function AdminDashboard() {
+  console.log("ADMIN DASHBOARD: Starting page fetch...");
   // Fire and forget the auto-backup so it doesn't block page load
   checkAndPerformAutoBackup().catch(console.error);
 
   // Get general statistics
+  console.log("ADMIN DASHBOARD: Fetching counts...");
   const [totalEvents, totalPlayers, totalUnpaidCount, totalPaidCount, totalPendingReports] = await Promise.all([
     prisma.event.count(),
     prisma.player.count(),
@@ -82,8 +84,10 @@ export default async function AdminDashboard() {
       },
     }),
   ])
+  console.log("ADMIN DASHBOARD: Counts fetched successfully");
 
   // Calculate accurate unpaid amount by summing individual event players' remaining balances
+  console.log("ADMIN DASHBOARD: Fetching eventPlayersWithDebt...");
   const eventPlayersWithDebt = await (prisma.eventPlayer as any).findMany({
     where: {
       paymentStatus: {
