@@ -62,28 +62,45 @@ export default async function AdminDashboard() {
   checkAndPerformAutoBackup().catch(console.error);
 
   // Get general statistics
-  console.log("ADMIN DASHBOARD: Fetching counts...");
-  const [totalEvents, totalPlayers, totalUnpaidCount, totalPaidCount, totalPendingReports] = await Promise.all([
-    prisma.event.count(),
-    prisma.player.count(),
-    prisma.eventPlayer.count({
-      where: {
-        paymentStatus: {
-          in: ["UNPAID", "PARTIALLY_PAID"],
+  let totalEvents = 0;
+  let totalPlayers = 0;
+  let totalUnpaidCount = 0;
+  let totalPaidCount = 0;
+  let totalPendingReports = 0;
+
+  try {
+    const counts = await Promise.all([
+      prisma.event.count().catch(e => { console.error("Event count error:", e); throw e; }),
+      prisma.player.count().catch(e => { console.error("Player count error:", e); throw e; }),
+      prisma.eventPlayer.count({
+        where: {
+          paymentStatus: {
+            in: ["UNPAID", "PARTIALLY_PAID"],
+          },
         },
-      },
-    }),
-    prisma.eventPlayer.count({
-      where: {
-        paymentStatus: "FULLY_PAID",
-      },
-    }),
-    prisma.errorReport.count({
-      where: {
-        status: "pending",
-      },
-    }),
-  ])
+      }).catch(e => { console.error("EventPlayer count error:", e); throw e; }),
+      prisma.eventPlayer.count({
+        where: {
+          paymentStatus: "FULLY_PAID",
+        },
+      }).catch(e => { console.error("Paid EventPlayer count error:", e); throw e; }),
+      prisma.errorReport.count({
+        where: {
+          status: "pending",
+        },
+      }).catch(e => { console.error("ErrorReport count error:", e); throw e; }),
+    ])
+    totalEvents = counts[0];
+    totalPlayers = counts[1];
+    totalUnpaidCount = counts[2];
+    totalPaidCount = counts[3];
+    totalPendingReports = counts[4];
+    console.log("ADMIN DASHBOARD: Counts fetched successfully");
+  } catch (err: any) {
+    console.error("CRITICAL DASHBOARD DATA ERROR:", err);
+    // Return a fallback UI or throw to show the next error boundary
+    throw new Error(`Dashboard data fetch failed: ${err.message || "Unknown error"}`);
+  }
   console.log("ADMIN DASHBOARD: Counts fetched successfully");
 
   // Calculate accurate unpaid amount by summing individual event players' remaining balances
