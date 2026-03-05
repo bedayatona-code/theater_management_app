@@ -3,8 +3,17 @@ import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
 
 export async function middleware(request: NextRequest) {
-    const token = await getToken({ req: request, secret: process.env.AUTH_SECRET || "development-secret-key-change-in-production" })
+    const secret = process.env.AUTH_SECRET || "development-secret-key-change-in-production"
+    const token = await getToken({ req: request, secret })
     const { pathname } = request.nextUrl
+
+    console.log(`MIDDLEWARE DEBUG: path=${pathname}, hasToken=${!!token}`);
+    if (token) {
+        console.log(`MIDDLEWARE DEBUG: tokenRole=${token.role}`);
+    } else {
+        const cookies = request.cookies.getAll().map(c => c.name);
+        console.log(`MIDDLEWARE DEBUG: No token found. Cookies present: ${cookies.join(", ")}`);
+    }
 
     // Allow access to login page and API routes
     if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
