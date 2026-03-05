@@ -108,47 +108,36 @@ export default async function AdminDashboard() {
 
     console.log("ADMIN DASHBOARD: Main stats fetched.");
 
-    // Fetch monthly data for the last 12 months
-    const monthsDataPromises = []
+    // Fetch monthly data for the last 12 months sequentially
+    const monthlyData = []
     for (let i = 11; i >= 0; i--) {
       const monthStart = startOfMonth(subMonths(new Date(), i))
       const monthEnd = endOfMonth(monthStart)
       const monthLabel = monthStart.toLocaleString('default', { month: 'short', year: '2-digit' })
 
-      const incomePromise = (prisma.payment as any).aggregate({
+      const income = await prisma.payment.aggregate({
         where: {
           type: "INCOME",
-          paymentDate: {
-            gte: monthStart,
-            lte: monthEnd,
-          },
+          paymentDate: { gte: monthStart, lte: monthEnd },
         },
-        _sum: {
-          amount: true,
-        },
+        _sum: { amount: true },
       })
 
-      const expensesPromise = (prisma.payment as any).aggregate({
+      const expenses = await prisma.payment.aggregate({
         where: {
           type: "EXPENSE",
-          paymentDate: {
-            gte: monthStart,
-            lte: monthEnd,
-          },
+          paymentDate: { gte: monthStart, lte: monthEnd },
         },
-        _sum: {
-          amount: true,
-        },
+        _sum: { amount: true },
       })
 
-      monthsDataPromises.push(Promise.all([incomePromise, expensesPromise]).then(([income, expenses]) => ({
+      monthlyData.push({
         label: monthLabel,
-        income: (income as any)._sum.amount || 0,
-        expenses: (expenses as any)._sum.amount || 0,
-      })))
+        income: income._sum.amount || 0,
+        expenses: expenses._sum.amount || 0,
+      })
     }
-
-    const monthlyData = await Promise.all(monthsDataPromises)
+    console.log("ADMIN DASHBOARD: Monthly data fetched.");
     const overpaidPlayers = await prisma.player.findMany({
       where: {
         overpaymentDismissed: false,
