@@ -5,34 +5,30 @@ import { NextResponse } from "next/server"
 const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
-    const { nextUrl } = req
-    const isLoggedIn = !!req.auth
-    const userRole = (req.auth?.user as any)?.role
+    // Just a simple log to see if we're even getting here without crashing
+    console.log("MIDDLEWARE HIT:", req.nextUrl.pathname);
 
-    console.log(`MIDDLEWARE DEBUG: path=${nextUrl.pathname}, isLoggedIn=${isLoggedIn}, role=${userRole}`);
+    const isLoggedIn = !!req.auth;
+    const userRole = (req.auth?.user as any)?.role;
 
-    // Allow access to login page and API routes
-    if (nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/api/auth")) {
-        return NextResponse.next()
-    }
-
-    // Protect /admin routes - require ADMIN role
-    if (nextUrl.pathname.startsWith("/admin")) {
+    // Protect /admin
+    if (req.nextUrl.pathname.startsWith("/admin")) {
         if (!isLoggedIn) {
-            return NextResponse.redirect(new URL("/login", nextUrl))
+            return NextResponse.redirect(new URL("/login", req.nextUrl));
         }
         if (userRole !== "ADMIN") {
-            return NextResponse.redirect(new URL("/player", nextUrl))
+            return NextResponse.redirect(new URL("/player", req.nextUrl));
         }
     }
 
-    // Protect /player routes - require PLAYER role
-    if (nextUrl.pathname.startsWith("/player")) {
+    // Protect /player
+    if (req.nextUrl.pathname.startsWith("/player")) {
         if (!isLoggedIn) {
-            return NextResponse.redirect(new URL("/login", nextUrl))
+            return NextResponse.redirect(new URL("/login", req.nextUrl));
         }
+        // Player and Admin can see player pages?
         if (userRole !== "PLAYER" && userRole !== "ADMIN") {
-            return NextResponse.redirect(new URL("/admin", nextUrl))
+            return NextResponse.redirect(new URL("/admin", req.nextUrl));
         }
     }
 
@@ -40,5 +36,5 @@ export default auth((req) => {
 })
 
 export const config = {
-    matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+    matcher: ["/admin/:path*", "/player/:path*"],
 }
