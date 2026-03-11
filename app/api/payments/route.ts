@@ -101,7 +101,13 @@ export async function POST(request: NextRequest) {
       bankAccount,
       bankNumber,
       receiptLink,
-      notes
+      notes,
+      forMonth,
+      receiptNumber,
+      invoiceNumber,
+      checkCashedDate,
+      supplierName,
+      supplierAddress,
     } = body
 
     // Support both single and multiple events
@@ -134,8 +140,28 @@ export async function POST(request: NextRequest) {
         bankNumber,
         receiptLink,
         notes,
+        forMonth: forMonth ? new Date(forMonth) : null,
+        receiptNumber: receiptNumber || null,
+        invoiceNumber: invoiceNumber || null,
+        checkCashedDate: checkCashedDate ? new Date(checkCashedDate) : null,
+        supplierName: supplierName || null,
+        supplierAddress: supplierAddress || null,
       },
     })
+
+    // Auto-save supplier for future reuse
+    if (supplierName && supplierName.trim()) {
+      try {
+        await (prisma as any).supplier.upsert({
+          where: { name: supplierName.trim() },
+          update: { address: supplierAddress || null },
+          create: { name: supplierName.trim(), address: supplierAddress || null },
+        })
+      } catch (e) {
+        // Non-critical, don't fail the payment
+        console.error("Failed to save supplier:", e)
+      }
+    }
 
     // Distribute the payment amount across the selected events
     let remainingAmount = totalAmount
@@ -262,6 +288,12 @@ export async function PUT(request: NextRequest) {
         bankNumber,
         receiptLink,
         notes,
+        forMonth: body.forMonth ? new Date(body.forMonth) : null,
+        receiptNumber: body.receiptNumber || null,
+        invoiceNumber: body.invoiceNumber || null,
+        checkCashedDate: body.checkCashedDate ? new Date(body.checkCashedDate) : null,
+        supplierName: body.supplierName || null,
+        supplierAddress: body.supplierAddress || null,
       } as any,
       include: {
         player: true,

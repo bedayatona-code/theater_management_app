@@ -39,6 +39,12 @@ function PaymentsContent() {
     eventId: "",
     creditCardNumber: "",
     creditCardHolder: "",
+    forMonth: "",
+    receiptNumber: "",
+    invoiceNumber: "",
+    checkCashedDate: "",
+    supplierName: "",
+    supplierAddress: "",
   })
 
   const incomeCategories = [
@@ -53,13 +59,26 @@ function PaymentsContent() {
   const [filterType, setFilterType] = useState("all")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [filterSupplier, setFilterSupplier] = useState("all")
+  const [suppliers, setSuppliers] = useState<any[]>([])
 
   useEffect(() => {
     fetchPayments()
     fetchPlayers()
     fetchEvents()
     fetchSavedCards()
+    fetchSuppliers()
   }, [])
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await fetch("/api/suppliers")
+      const data = await res.json()
+      setSuppliers(data)
+    } catch (error) {
+      console.error("Failed to fetch suppliers:", error)
+    }
+  }
 
   const fetchSavedCards = async () => {
     try {
@@ -313,6 +332,7 @@ function PaymentsContent() {
 
         resetForm()
         fetchPayments()
+        fetchSuppliers()
         if (formData.type === "INCOME") fetchPlayers()
       } else {
         const errorData = await res.json().catch(() => ({}));
@@ -342,6 +362,12 @@ function PaymentsContent() {
       eventId: payment.eventId || "",
       creditCardNumber: payment.creditCardNumber || "",
       creditCardHolder: payment.creditCardHolder || "",
+      forMonth: payment.forMonth ? new Date(payment.forMonth).toISOString().slice(0, 7) : "",
+      receiptNumber: payment.receiptNumber || "",
+      invoiceNumber: payment.invoiceNumber || "",
+      checkCashedDate: payment.checkCashedDate ? new Date(payment.checkCashedDate).toISOString().split("T")[0] : "",
+      supplierName: payment.supplierName || "",
+      supplierAddress: payment.supplierAddress || "",
     })
     setSelectedPlayerId(payment.playerId || "")
     const eventIds = payment.paymentEvents?.map((pe: any) => pe.eventPlayerId) || []
@@ -379,14 +405,15 @@ function PaymentsContent() {
       const yearMatch = selectedYear === 'all' || pDate.getFullYear() === selectedYear
       const categoryMatch = filterCategory === 'all' || p.category === filterCategory
       const typeMatch = filterType === 'all' || p.type === filterType
+      const supplierMatch = filterSupplier === 'all' || p.supplierName === filterSupplier
 
       let dateRangeMatch = true
       if (startDate) dateRangeMatch = dateRangeMatch && pDate >= new Date(startDate)
       if (endDate) dateRangeMatch = dateRangeMatch && pDate <= new Date(endDate)
 
-      return monthMatch && yearMatch && categoryMatch && typeMatch && dateRangeMatch
+      return monthMatch && yearMatch && categoryMatch && typeMatch && dateRangeMatch && supplierMatch
     })
-  }, [payments, selectedMonth, selectedYear, filterCategory, filterType, startDate, endDate])
+  }, [payments, selectedMonth, selectedYear, filterCategory, filterType, startDate, endDate, filterSupplier])
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const date = new Date(2000, i, 1)
@@ -421,6 +448,12 @@ function PaymentsContent() {
       eventId: "",
       creditCardNumber: "",
       creditCardHolder: "",
+      forMonth: "",
+      receiptNumber: "",
+      invoiceNumber: "",
+      checkCashedDate: "",
+      supplierName: "",
+      supplierAddress: "",
     })
     setSelectedPlayerId("")
     setSelectedEventId("")
@@ -532,6 +565,20 @@ function PaymentsContent() {
               <option value="הנהלת חשבונות">{t("cat.accounting")}</option>
               <option value="פרסום וקידום מכירות">{t("cat.marketing")}</option>
               <option value="כיבודים">{t("cat.refreshments")}</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black text-muted-foreground uppercase mb-1 opacity-60">{language === "he" ? "שם ספק" : "Supplier"}</label>
+            <select
+              value={filterSupplier}
+              onChange={(e) => setFilterSupplier(e.target.value)}
+              className="bg-muted border border-border rounded-lg px-3 py-2 text-sm font-bold outline-none"
+            >
+              <option value="all">{language === "he" ? "כל הספקים" : "All Suppliers"}</option>
+              {Array.from(new Set(payments.filter(p => p.supplierName).map(p => p.supplierName))).sort().map((name: string) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
             </select>
           </div>
 
@@ -813,6 +860,100 @@ function PaymentsContent() {
               </div>
             )}
 
+            {/* Expense-specific fields: Supplier, Month, Receipt/Invoice */}
+            {formData.type === "EXPENSE" && formData.category && formData.category !== "אמנים ושחקנים" && (
+              <div className="space-y-6 animate-in slide-in-from-top-2 p-6 bg-red-500/5 rounded-2xl border border-red-500/10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* שם ספק - Supplier Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
+                      {language === "he" ? "שם ספק" : "Supplier Name"}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        list="supplier-list"
+                        value={formData.supplierName}
+                        onChange={(e) => {
+                          const name = e.target.value
+                          setFormData(prev => ({ ...prev, supplierName: name }))
+                          // Auto-fill address if supplier exists
+                          const existing = suppliers.find(s => s.name === name)
+                          if (existing && existing.address) {
+                            setFormData(prev => ({ ...prev, supplierName: name, supplierAddress: existing.address }))
+                          }
+                        }}
+                        className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
+                        placeholder={language === "he" ? "הקלד שם ספק..." : "Type supplier name..."}
+                      />
+                      <datalist id="supplier-list">
+                        {suppliers.map(s => (
+                          <option key={s.id} value={s.name} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+
+                  {/* כתובת - Address */}
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
+                      {language === "he" ? "כתובת" : "Address"}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.supplierAddress}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supplierAddress: e.target.value }))}
+                      className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
+                      placeholder={language === "he" ? "כתובת הספק" : "Supplier address"}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* עבור חודש - For Month */}
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
+                      {language === "he" ? "עבור חודש" : "For Month"}
+                    </label>
+                    <input
+                      type="month"
+                      value={formData.forMonth}
+                      onChange={(e) => setFormData(prev => ({ ...prev, forMonth: e.target.value }))}
+                      className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
+                    />
+                  </div>
+
+                  {/* מס' קבלה - Receipt Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
+                      {language === "he" ? "מס' קבלה" : "Receipt No."}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.receiptNumber}
+                      onChange={(e) => setFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
+                      className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
+                      placeholder={language === "he" ? "מספר קבלה" : "Receipt number"}
+                    />
+                  </div>
+
+                  {/* מס' חשבונית - Invoice Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
+                      {language === "he" ? "מס' חשבונית" : "Invoice No."}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.invoiceNumber}
+                      onChange={(e) => setFormData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                      className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
+                      placeholder={language === "he" ? "מספר חשבונית" : "Invoice number"}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">{t("payment.amount")} *</label>
@@ -825,29 +966,43 @@ function PaymentsContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">{t("payment.source")} *</label>
-              <select value={formData.paymentMethod} onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })} className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none" required>
-                <option value="PETTY_CASH">{t("source.petty_cash")}</option>
-                <option value="CREDIT_CARD">{t("source.credit_card")}</option>
-                <option value="CHECK">{t("source.check")}</option>
-                <option value="TRANSFER">{t("source.transfer")}</option>
+              <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">{language === "he" ? "שולם באמצעות" : t("payment.source")} *</label>
+              <select value={formData.paymentMethod} onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })} className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-medium text-foreground" required>
+                <option value="PETTY_CASH">{language === "he" ? "קופה קטנה" : "Petty Cash"}</option>
+                <option value="CREDIT_CARD">{language === "he" ? "כרטיס אשראי" : "Credit Card"}</option>
+                <option value="CHECK">{language === "he" ? "צ'ק" : "Check"}</option>
+                <option value="TRANSFER">{language === "he" ? "העברה בנקאית" : "Bank Transfer"}</option>
               </select>
             </div>
 
-            {/* Dynamic fields based on payment method */}
             {formData.paymentMethod === "CHECK" && (
-              <div className="animate-in slide-in-from-top-2">
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
-                  {language === "he" ? "מס' צ'ק" : "Check Number"} *
-                </label>
-                <input
-                  type="text"
-                  value={formData.checkNumber}
-                  onChange={(e) => setFormData({ ...formData, checkNumber: e.target.value })}
-                  className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
-                  placeholder="0000000"
-                  required
-                />
+              <div className="animate-in slide-in-from-top-2 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
+                      {language === "he" ? "מס' צ'ק" : "Check Number"} *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.checkNumber}
+                      onChange={(e) => setFormData({ ...formData, checkNumber: e.target.value })}
+                      className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
+                      placeholder="0000000"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase mb-2">
+                      {language === "he" ? "נפרע בתאריך" : "Cashed on Date"}
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.checkCashedDate}
+                      onChange={(e) => setFormData({ ...formData, checkCashedDate: e.target.value })}
+                      className="w-full px-4 py-3 bg-muted border border-border rounded-lg outline-none font-bold"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -955,15 +1110,16 @@ function PaymentsContent() {
                 <th className={`px-6 py-4 font-bold text-muted-foreground text-[10px] uppercase tracking-widest ${language === "he" ? "text-right" : "text-left"}`}>{t("payment.category")}</th>
                 <th className={`px-6 py-4 font-bold text-muted-foreground text-[10px] uppercase tracking-widest ${language === "he" ? "text-right" : "text-left"}`}>{t("table.player")}</th>
                 <th className={`px-6 py-4 font-bold text-muted-foreground text-[10px] uppercase tracking-widest ${language === "he" ? "text-right" : "text-left"}`}>{t("payment.amount")}</th>
+                <th className={`px-6 py-4 font-bold text-muted-foreground text-[10px] uppercase tracking-widest ${language === "he" ? "text-right" : "text-left"}`}>{language === "he" ? "ספק" : "Supplier"}</th>
                 <th className={`px-6 py-4 font-bold text-muted-foreground text-[10px] uppercase tracking-widest ${language === "he" ? "text-right" : "text-left"}`}>{t("payment.receipt")}</th>
                 <th className={`px-6 py-4 font-bold text-muted-foreground text-[10px] uppercase tracking-widest ${language === "he" ? "text-right" : "text-left"}`}>{t("table.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
               {loading ? (
-                <tr><td colSpan={7} className="px-6 py-12 text-center animate-pulse text-muted-foreground font-bold uppercase tracking-widest">{t("common.fetching")}</td></tr>
+                <tr><td colSpan={8} className="px-6 py-12 text-center animate-pulse text-muted-foreground font-bold uppercase tracking-widest">{t("common.fetching")}</td></tr>
               ) : filteredPayments.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-12 text-center text-muted-foreground italic">{t("payment.none")}</td></tr>
+                <tr><td colSpan={8} className="px-6 py-12 text-center text-muted-foreground italic">{t("payment.none")}</td></tr>
               ) : (
                 filteredPayments.map((p) => (
                   <tr key={p.id} className="hover:bg-muted/30 transition-colors">
@@ -982,6 +1138,7 @@ function PaymentsContent() {
                       )}
                     </td>
                     <td className={`px-6 py-5 text-sm font-black ${p.type === "EXPENSE" ? "text-red-500" : "text-green-500"}`}>{p.type === "EXPENSE" ? "-" : "+"}₪{p.amount.toFixed(2)}</td>
+                    <td className="px-6 py-5 text-xs font-medium opacity-70">{p.supplierName || "-"}</td>
                     <td className="px-6 py-5 text-sm">{p.receiptLink && <a href={p.receiptLink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold text-xs">{t("payment.receipt")}</a>}</td>
                     <td className="px-6 py-5 text-sm">
                       <div className="flex gap-4">

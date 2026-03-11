@@ -105,6 +105,12 @@ model Payment {
   bankNumber          String?  // Bank branch/code number
   receiptLink         String?  // Link to receipt/document
   notes               String?
+  forMonth            DateTime?  // עבור חודש - which month this expense is for
+  receiptNumber       String?    // מס' קבלה
+  invoiceNumber       String?    // מס' חשבונית
+  checkCashedDate     DateTime?  // נפרע בתאריך - date the check was cashed
+  supplierName        String?    // שם ספק
+  supplierAddress     String?    // כתובת ספק
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -184,4 +190,14 @@ model GoogleToken {
   updatedAt    DateTime @updatedAt
 
   @@map("google_tokens")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("suppliers")
 }

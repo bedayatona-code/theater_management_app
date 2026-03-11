@@ -43,20 +43,18 @@ export default function LoginPage() {
       if (result.error) {
         setError("Invalid email or password")
       } else if (result.ok) {
-        // Wait for session to update
-        setTimeout(() => {
-          fetch("/api/auth/session")
-            .then((res) => res.json())
-            .then((data) => {
-              const role = data?.user?.role
-              router.push(role === "ADMIN" ? "/admin" : "/player")
-              router.refresh()
-            })
-            .catch(() => {
-              router.push("/admin")
-              router.refresh()
-            })
-        }, 100)
+        // Wait for session cookie to settle, then do a hard redirect
+        // Using window.location.href ensures the browser picks up fresh cookies
+        setTimeout(async () => {
+          try {
+            const res = await fetch("/api/auth/session")
+            const data = await res.json()
+            const role = data?.user?.role
+            window.location.href = role === "ADMIN" ? "/admin" : "/player"
+          } catch {
+            window.location.href = "/admin"
+          }
+        }, 500)
       }
     } catch (err) {
       console.error("Login catch error:", err)
