@@ -33,18 +33,33 @@ export default function LoginPage() {
         redirect: false,
       })
 
-      console.log("Login result:", result)
-
       if (!result) {
         setError("No response from server. Check your connection.")
+        setLoading(false)
         return
       }
 
       if (result.error) {
-        setError("Invalid email or password")
+        // NextAuth returns the thrown error message from authorize()
+        // Check if it's a DB error vs credential error
+        const errMsg = result.error.toLowerCase()
+        if (
+          errMsg.includes("database") ||
+          errMsg.includes("timeout") ||
+          errMsg.includes("timed out") ||
+          errMsg.includes("tenant") ||
+          errMsg.includes("connect") ||
+          errMsg.includes("unavailable") ||
+          errMsg.includes("verification failed")
+        ) {
+          setError("⚠️ Server connection issue. Please wait a moment and try again.")
+        } else {
+          setError("Invalid email or password")
+        }
+        setLoading(false)
       } else if (result.ok) {
-        // Wait for session cookie to settle, then do a hard redirect
-        // Using window.location.href ensures the browser picks up fresh cookies
+        // Keep loading=true so user sees it's working during redirect
+        // Use window.location.href for a hard redirect (reliable cookie pickup)
         setTimeout(async () => {
           try {
             const res = await fetch("/api/auth/session")
@@ -58,8 +73,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error("Login catch error:", err)
-      setError("An error occurred during login")
-    } finally {
+      setError("An error occurred during login. Please try again.")
       setLoading(false)
     }
   }
