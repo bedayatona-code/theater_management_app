@@ -15,6 +15,8 @@ export function PlayerDetailClient({ player }: PlayerDetailClientProps) {
     const { t, language } = useLanguage()
     const router = useRouter()
     const [isGenerating, setIsGenerating] = useState(false)
+    const [fromDate, setFromDate] = useState("")
+    const [toDate, setToDate] = useState("")
 
     const handleDownloadStatement = async () => {
         setIsGenerating(true)
@@ -40,6 +42,26 @@ export function PlayerDetailClient({ player }: PlayerDetailClientProps) {
         return sum + paidForEvent
     }, 0)
     const outstanding = Math.max(0, totalFees - totalPaid)
+
+    const isFiltering = fromDate !== "" || toDate !== ""
+    const from = fromDate ? new Date(fromDate) : null
+    const to = toDate ? new Date(toDate + "T23:59:59") : null
+
+    const displayedEventPlayers = isFiltering
+        ? player.eventPlayers.filter((ep: any) => {
+            const paid = (ep.paymentEvents || []).reduce((sum: number, pe: any) => sum + pe.amount, 0)
+            const unpaid = ep.fee - paid > 0
+            if (!unpaid) return false
+            const eventDate = new Date(ep.event.date)
+            return (!from || eventDate >= from) && (!to || eventDate <= to)
+        })
+        : player.eventPlayers
+
+    const filteredTotalFee = isFiltering ? displayedEventPlayers.reduce((sum: number, ep: any) => sum + ep.fee, 0) : 0
+    const filteredTotalPaid = isFiltering ? displayedEventPlayers.reduce((sum: number, ep: any) => {
+        return sum + (ep.paymentEvents || []).reduce((s: number, pe: any) => s + pe.amount, 0)
+    }, 0) : 0
+    const filteredTotalRemaining = isFiltering ? filteredTotalFee - filteredTotalPaid : 0
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500" dir={language === "he" ? "rtl" : "ltr"}>
@@ -137,9 +159,40 @@ export function PlayerDetailClient({ player }: PlayerDetailClientProps) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Event Participation Table */}
                 <div className="lg:col-span-2 space-y-4">
-                    <div className="flex justify-between items-center">
+                    <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${language === "he" ? "sm:flex-row-reverse" : ""}`}>
                         <h2 className="text-2xl font-black text-foreground tracking-tight uppercase tracking-tighter">{t("player.events_fees")}</h2>
+                        <div className={`flex flex-wrap items-center gap-2 ${language === "he" ? "flex-row-reverse" : ""}`}>
+                            <div className={`flex items-center gap-1 ${language === "he" ? "flex-row-reverse" : ""}`}>
+                                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">{t("filter.from_date")}</label>
+                                <input
+                                    type="date"
+                                    value={fromDate}
+                                    onChange={(e) => setFromDate(e.target.value)}
+                                    className="px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground text-xs focus:ring-2 focus:ring-primary outline-none"
+                                />
+                            </div>
+                            <div className={`flex items-center gap-1 ${language === "he" ? "flex-row-reverse" : ""}`}>
+                                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">{t("filter.to_date")}</label>
+                                <input
+                                    type="date"
+                                    value={toDate}
+                                    onChange={(e) => setToDate(e.target.value)}
+                                    className="px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground text-xs focus:ring-2 focus:ring-primary outline-none"
+                                />
+                            </div>
+                            {isFiltering && (
+                                <button
+                                    onClick={() => { setFromDate(""); setToDate("") }}
+                                    className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground border border-border rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                >
+                                    {t("filter.clear")}
+                                </button>
+                            )}
+                        </div>
                     </div>
+                    {isFiltering && (
+                        <p className="text-[10px] font-medium text-orange-500 uppercase tracking-widest">{t("filter.unpaid_in_range")} ({displayedEventPlayers.length})</p>
+                    )}
                     <div className="bg-secondary rounded-2xl border border-border shadow-md overflow-hidden animate-in slide-in-from-bottom-4 duration-500 delay-150">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-border/50">
@@ -152,7 +205,14 @@ export function PlayerDetailClient({ player }: PlayerDetailClientProps) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/30 text-foreground">
-                                    {player.eventPlayers.map((ep: any) => {
+                                    {displayedEventPlayers.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-10 text-center text-sm text-muted-foreground font-medium">
+                                                {t("alert.no_unpaid_found")}
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {displayedEventPlayers.map((ep: any) => {
                                         const paid = (ep.paymentEvents || []).reduce((sum: number, pe: any) => sum + pe.amount, 0)
                                         let statusColor = "bg-red-500/10 text-red-500"
                                         if (paid >= ep.fee) statusColor = "bg-green-500/10 text-green-500"
@@ -192,6 +252,24 @@ export function PlayerDetailClient({ player }: PlayerDetailClientProps) {
                                         )
                                     })}
                                 </tbody>
+                                {isFiltering && displayedEventPlayers.length > 0 && (
+                                    <tfoot className="bg-muted/70 border-t-2 border-border">
+                                        <tr>
+                                            <td className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest text-foreground ${language === "he" ? "text-right" : "text-left"}`} colSpan={2}>
+                                                {t("filter.unpaid_in_range")} ({displayedEventPlayers.length})
+                                            </td>
+                                            <td className="px-6 py-4 font-black text-sm text-foreground whitespace-nowrap">
+                                                ₪{filteredTotalFee.toFixed(2)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="text-[10px] font-black uppercase text-red-500">
+                                                    {language === "he" ? "יתרה" : "Remaining"}: ₪{filteredTotalRemaining.toFixed(2)}
+                                                    {filteredTotalPaid > 0 && <span className="text-green-500 ml-2">(+₪{filteredTotalPaid.toFixed(2)} {language === "he" ? "שולם" : "paid"})</span>}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                )}
                             </table>
                         </div>
                     </div>

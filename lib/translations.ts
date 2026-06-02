@@ -304,6 +304,10 @@ export const translations = {
         "import.errors": "Errors",
         "alert.generic_error": "An error occurred",
         "alert.event_create_error": "Error creating event",
+        "filter.from_date": "From",
+        "filter.to_date": "To",
+        "filter.clear": "Clear",
+        "filter.unpaid_in_range": "Showing unpaid events in selected range",
     },
     he: {
         "app.title": "ניהול תיאטרון",
@@ -607,6 +611,10 @@ export const translations = {
         "import.errors": "שגיאות",
         "alert.generic_error": "אירעה שגיאה",
         "alert.event_create_error": "שגיאה ביצירת אירוע",
+        "filter.from_date": "מתאריך",
+        "filter.to_date": "עד תאריך",
+        "filter.clear": "נקה",
+        "filter.unpaid_in_range": "מציג אירועים שלא שולמו בטווח שנבחר",
     },
 }
 
