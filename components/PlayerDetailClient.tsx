@@ -21,12 +21,24 @@ export function PlayerDetailClient({ player }: PlayerDetailClientProps) {
     const handleDownloadStatement = async () => {
         setIsGenerating(true)
         try {
-            // Filter only unpaid events for the statement
+            // Filter to unpaid events. If a date filter is active in the table view,
+            // honor it here too so the PDF matches what the user sees.
+            const filterActive = fromDate !== "" || toDate !== ""
+            const fromForPdf = fromDate ? new Date(fromDate) : null
+            const toForPdf = toDate ? new Date(toDate + "T23:59:59") : null
             const unpaidEvents = player.eventPlayers.filter((ep: any) => {
                 const paid = (ep.paymentEvents || []).reduce((sum: number, pe: any) => sum + pe.amount, 0)
-                return ep.fee - paid > 0
+                if (ep.fee - paid <= 0) return false
+                if (filterActive) {
+                    const eventDate = new Date(ep.event.date)
+                    if (fromForPdf && eventDate < fromForPdf) return false
+                    if (toForPdf && eventDate > toForPdf) return false
+                }
+                return true
             })
-            await generatePlayerStatement(player, unpaidEvents)
+            await generatePlayerStatement(player, unpaidEvents, {
+                dateRange: filterActive ? { from: fromDate || undefined, to: toDate || undefined } : undefined,
+            })
         } catch (error) {
             console.error("Failed to generate statement", error)
             alert(t("alert.process_error"))

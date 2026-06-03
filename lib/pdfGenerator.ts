@@ -90,7 +90,13 @@ function normalizeHebrew(text: string): string {
     }
 }
 
-function createPlayerStatement(player: any, unpaidEvents: any[]) {
+export interface StatementOptions {
+    dateRange?: { from?: string; to?: string }
+}
+
+function createPlayerStatement(player: any, unpaidEvents: any[], options: StatementOptions = {}) {
+    const dateRange = options.dateRange
+
     const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
@@ -100,70 +106,123 @@ function createPlayerStatement(player: any, unpaidEvents: any[]) {
 
     setupHebrewFont(doc)
 
-    const totalOutstanding = unpaidEvents.reduce((sum, ep) => {
+    // Compute totals
+    const totalFee = unpaidEvents.reduce((s, ep) => s + ep.fee, 0)
+    const totalPaid = unpaidEvents.reduce((s, ep) => {
         const paid = (ep.paymentEvents || []).reduce((pSum: number, pe: any) => pSum + pe.amount, 0)
-        return sum + (ep.fee - paid)
+        return s + paid
     }, 0)
+    const totalBalance = totalFee - totalPaid
 
     // Banner
     const bannerEnd = addBanner(doc)
 
-    // Header
+    // Title (English only — clean and consistent)
     doc.setFontSize(22)
     doc.setTextColor(40, 44, 52)
-    doc.text(normalizeHebrew('Financial Statement / הצהרת תשלומים'), 14, bannerEnd + 2)
+    doc.text('Financial Statement', 14, bannerEnd + 2)
 
+    // Generated date
     doc.setFontSize(10)
     doc.setTextColor(100)
-    doc.text(`Generated on: ${new Date().toLocaleDateString()} `, 14, bannerEnd + 10)
+    doc.text(`Generated on: ${format(new Date(), 'dd/MM/yyyy')}`, 14, bannerEnd + 10)
 
-    // Player Info
+    // Date range info (only if filtered)
+    let dateRangeY = bannerEnd + 10
+    if (dateRange && (dateRange.from || dateRange.to)) {
+        const fromStr = dateRange.from ? format(new Date(dateRange.from), 'dd/MM/yyyy') : '—'
+        const toStr = dateRange.to ? format(new Date(dateRange.to), 'dd/MM/yyyy') : '—'
+        dateRangeY = bannerEnd + 16
+        doc.text(`Date Range: From ${fromStr} To ${toStr}`, 14, dateRangeY)
+    }
+
+    // Player Info section
+    const playerInfoY = dateRangeY + 12
     doc.setFontSize(12)
     doc.setTextColor(0)
-    doc.text('Player Details:', 14, bannerEnd + 22)
-    doc.setFontSize(10)
-    doc.text(`Name: ${player.fullName} `, 14, bannerEnd + 29)
-    doc.text(`Email: ${player.email} `, 14, bannerEnd + 35)
-    if (player.phone) doc.text(`Phone: ${player.phone} `, 14, bannerEnd + 41)
+    doc.text('Player Details:', 14, playerInfoY)
 
-    // Summary Box
-    doc.setFillColor(240, 240, 240)
-    doc.rect(140, bannerEnd + 17, 56, 30, 'F')
+    // For label+value lines, the label stays pure-English LTR.
+    // Only the value (which may contain Hebrew) is normalized so jsPDF renders it correctly.
     doc.setFontSize(10)
-    doc.text('Outstanding Balance:', 145, bannerEnd + 27)
+    doc.text(`Name: ${normalizeHebrew(player.fullName || '')}`, 14, playerInfoY + 7)
+    doc.text(`Email: ${player.email || ''}`, 14, playerInfoY + 13)
+    if (player.phone) {
+        doc.text(`Phone: ${player.phone}`, 14, playerInfoY + 19)
+    }
+
+    // Outstanding Balance box (top-right)
+    doc.setFillColor(240, 240, 240)
+    doc.rect(140, playerInfoY - 5, 56, 30, 'F')
+    doc.setFontSize(10)
+    doc.setTextColor(0)
+    doc.text('Outstanding Balance:', 145, playerInfoY + 5)
     doc.setFontSize(16)
     doc.setTextColor(180, 0, 0)
-    doc.text(`ILS ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })} `, 145, bannerEnd + 39)
+    doc.text(`ILS ${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 145, playerInfoY + 17)
 
     // Table
+    const tableStartY = playerInfoY + 35
+    const headers = ['Date', 'Event', 'Fee', 'Paid', 'Balance', 'Method', 'Notes']
+
     const tableData = unpaidEvents.map(ep => {
         const paid = (ep.paymentEvents || []).reduce((pSum: number, pe: any) => pSum + pe.amount, 0)
-        // Get details from the latest payment event if exists
         const lastPayment = ep.paymentEvents?.[ep.paymentEvents.length - 1]?.payment
         const method = lastPayment?.paymentMethod || "-"
         const notes = lastPayment?.notes || lastPayment?.transactionReference || "-"
 
         return [
             format(new Date(ep.event.date), 'dd/MM/yyyy'),
-            normalizeHebrew(ep.event.name),
-            `ILS ${ep.fee.toFixed(2)} `,
-            `ILS ${paid.toFixed(2)} `,
-            `ILS ${(ep.fee - paid).toFixed(2)} `,
+            normalizeHebrew(ep.event.name || ""),
+            `ILS ${ep.fee.toFixed(2)}`,
+            `ILS ${paid.toFixed(2)}`,
+            `ILS ${(ep.fee - paid).toFixed(2)}`,
             normalizeHebrew(method),
             normalizeHebrew(notes)
         ]
     })
 
+    // Totals row (rendered as autoTable foot)
+    const totalRow = [
+        '',
+        'Total',
+        `ILS ${totalFee.toFixed(2)}`,
+        `ILS ${totalPaid.toFixed(2)}`,
+        `ILS ${totalBalance.toFixed(2)}`,
+        '',
+        ''
+    ]
+
     autoTable(doc, {
-        startY: bannerEnd + 55,
-        head: [['Date', 'Event', 'Fee', 'Paid', 'Balance', 'Method', 'Notes'].map(h => normalizeHebrew(h))],
+        startY: tableStartY,
+        head: [headers],
         body: tableData,
+        foot: [totalRow],
         theme: 'grid',
-        headStyles: { fillColor: [40, 44, 52], fontSize: 10, font: 'Assistant', fontStyle: 'normal' },
-        bodyStyles: { fontSize: 9, font: 'Assistant', halign: 'right' },
+        headStyles: {
+            fillColor: [40, 44, 52],
+            textColor: [255, 255, 255],
+            fontSize: 10,
+            font: 'Assistant',
+            fontStyle: 'normal',
+            halign: 'left',
+        },
+        bodyStyles: {
+            fontSize: 9,
+            font: 'Assistant',
+            halign: 'left',
+        },
+        footStyles: {
+            fillColor: [220, 220, 220],
+            textColor: [40, 44, 52],
+            fontSize: 10,
+            font: 'Assistant',
+            fontStyle: 'normal',
+            halign: 'left',
+        },
         alternateRowStyles: { fillColor: [245, 245, 245] },
-        margin: { top: bannerEnd + 55 },
-        styles: { font: 'Assistant' } // Ensure font is applied globally to table
+        margin: { top: tableStartY },
+        styles: { font: 'Assistant' }
     })
 
     // Footer
@@ -173,7 +232,7 @@ function createPlayerStatement(player: any, unpaidEvents: any[]) {
         doc.setFontSize(8)
         doc.setTextColor(150)
         doc.text(
-            `Theater App - Professional Financial Report | Page ${i} of ${pageCount} `,
+            `Theater App - Professional Financial Report | Page ${i} of ${pageCount}`,
             14,
             doc.internal.pageSize.height - 10
         )
@@ -181,13 +240,13 @@ function createPlayerStatement(player: any, unpaidEvents: any[]) {
     return doc
 }
 
-export function generatePlayerStatement(player: any, unpaidEvents: any[]) {
-    const doc = createPlayerStatement(player, unpaidEvents)
+export function generatePlayerStatement(player: any, unpaidEvents: any[], options: StatementOptions = {}) {
+    const doc = createPlayerStatement(player, unpaidEvents, options)
     doc.save(`Statement_${player.fullName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`)
 }
 
-export function generatePlayerStatementBlob(player: any, unpaidEvents: any[]) {
-    const doc = createPlayerStatement(player, unpaidEvents)
+export function generatePlayerStatementBlob(player: any, unpaidEvents: any[], options: StatementOptions = {}) {
+    const doc = createPlayerStatement(player, unpaidEvents, options)
     return doc.output('blob')
 }
 
