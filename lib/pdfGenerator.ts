@@ -143,9 +143,9 @@ function createPlayerStatement(player: any, unpaidEvents: any[], options: Statem
     doc.text('Player Details:', 14, playerInfoY)
 
     // For label+value lines, the label stays pure-English LTR.
-    // Only the value (which may contain Hebrew) is normalized so jsPDF renders it correctly.
+    // Player name: pass directly without normalizeHebrew, let jsPDF's Hebrew font handle it natively.
     doc.setFontSize(10)
-    doc.text(`Name: ${normalizeHebrew(player.fullName || '')}`, 14, playerInfoY + 7)
+    doc.text(`Name: ${player.fullName || ''}`, 14, playerInfoY + 7)
     doc.text(`Email: ${player.email || ''}`, 14, playerInfoY + 13)
     if (player.phone) {
         doc.text(`Phone: ${player.phone}`, 14, playerInfoY + 19)
